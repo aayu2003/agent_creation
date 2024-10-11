@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Chat Application</title>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        body {
+            position: relative;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #ff7e5f, #feb47b);
+            font-family: 'Arial', sans-serif;
+        }
+
+        #chat-area {
+            position: absolute; 
+            top: 20%; 
+            right: 5%; 
+            left: 5%;
+            padding: 20px;
+            background-color: rgba(249, 249, 249, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2); 
+        }
+
+        #messages, #responses {
+            list-style-type: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        #message {
+            width: 80%;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center; color: white;">My Website</h1>
+
+    <div id="chat-area">
+        <h2 style="color: #333;">Chat</h2>
+    
+        <!-- Messages List -->
+        <ul id="messages"></ul>
+        
+        <!-- Responses List -->
+        <ul id="responses"></ul>
+        
+        <input id="message" autocomplete="off" placeholder="Enter message">
+        <button onclick="sendMessage()"><b>Send</b></button>
+
+        <!-- Loading Indicator -->
+        <div id="loading">
+            <span>Loading...</span>
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <script>
+        let lastQuery = '';
+        let lastUserId = '';
+
+        function sendMessage() {
+            const message = document.getElementById('message').value.trim();
+            let userId = prompt("Enter your user ID:"); // Prompt for user ID
+            
+            if (!message || !userId) {
+                alert("Please enter a message and user ID.");
+                return;
+            }
+            const encodedMessage = encodeURIComponent(message);
+            let apiUrl;
+
+            if (lastUserId === userId && lastQuery) {
+                // Use previous query and append additional info if necessary
+                apiUrl = `/chat?user_id=${userId}&query=${lastQuery}&additional_info=${encodedMessage}`;
+            } else {
+                // New user or new query
+                apiUrl = `/chat?user_id=${userId}&query=${encodedMessage}`;
+                lastQuery = encodedMessage; // Update last query
+                lastUserId = userId; // Update last user ID
+            }
+    
+            console.log('Sending message:', apiUrl);
+
+            // Show loading indicator
+            document.getElementById('loading').style.display = 'block';
+    
+            fetch(apiUrl, {
+                method: 'GET',
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Full response:', data);
+                const replyMessage = data.response || 'No reply found in the response';
+
+                // Update the message and response lists
+                const messagesList = document.getElementById('messages');
+                messagesList.appendChild(createMessageElement(`You: ${message}`));
+
+                const responsesList = document.getElementById('responses');
+                responsesList.appendChild(createMessageElement(`Response: ${replyMessage}`));
+
+                // Update last query based on additional_information
+                if (data.additional_information === 0) {
+                    lastQuery = encodedMessage; // Keep the last query for future requests
+                } else {
+                    lastQuery = ''; // Reset the last query if additional_info is 1
+                }
+
+                document.getElementById('message').value = '';
+            })
+            .catch(error => console.error('Error sending message:', error))
+            .finally(() => {
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+            });
+        }
+    
+        function createMessageElement(text) {
+            const newMessage = document.createElement('li');
+            newMessage.textContent = text;
+            return newMessage;
+        }
+    </script>
+            
+</body>
+</html>
